@@ -11,3 +11,44 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model User {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  username String @unique
+  hash     String
+
+  films Film[]
+}
+
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  films Film[]
+}
+
+model Film {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  name        String
+  description String?
+  year        Int?
+  link        String
+  posterUrl   String?
+
+  seasons  Int?
+  episodes Int?
+  duration Int?
+
+  isWatched Boolean @default(false)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  categories Category[]
+
+  @@index([userId])
+}
