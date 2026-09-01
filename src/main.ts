@@ -9,6 +9,9 @@ async function bootstrap() {
       whitelist: true,
     }),
   );
+  app.enableCors({
+    origin: process.env.FRONTEND_URL,
+  });
   await app.listen(process.env.PORT ?? 3000);
 }
 await bootstrap();
