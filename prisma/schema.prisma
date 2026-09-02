@@ -20,13 +20,20 @@ model User {
   hash     String
 
   films Film[]
+
+  categories Category[]
 }
 
 model Category {
   id   Int    @id @default(autoincrement())
   name String @unique
 
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
   films Film[]
+
+  @@unique([name, userId])
 }
 
 model Film {
