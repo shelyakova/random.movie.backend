@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { CategoryModule } from './category/category.module.js';
+import { FilmModule } from './film/film.module.js';
 
 @Module({
   imports: [
@@ -14,7 +15,8 @@ import { CategoryModule } from './category/category.module.js';
     }),
     PrismaModule,
     AuthModule,
-    CategoryModule
+    CategoryModule,
+    FilmModule
   ],
   providers: [
     {

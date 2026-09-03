@@ -10,12 +10,15 @@ describe('CategoryController', () => {
   const dto: CategoryDto = { name: 'test category' };
   const user: User = { id: 1, createdAt: new Date(), username: 'test', hash: "testhash" };
 
+  const category = { id: 1, name: 'test category', userId: 1 };
+  const categories = [category];
+
   beforeEach(() => {
     categoryServiceMock = {
-      getAll: vi.fn().mockResolvedValue({ access_token: 'getAll-token' }),
-      create: vi.fn().mockResolvedValue({ access_token: 'create-token' }),
-      edit: vi.fn().mockResolvedValue({ access_token: 'edit-token' }),
-      delete: vi.fn().mockResolvedValue({ access_token: 'delete-token' }),
+      getAll: vi.fn().mockResolvedValue(categories),
+      create: vi.fn().mockResolvedValue(category),
+      edit: vi.fn().mockResolvedValue({ ...category, name: 'updated category' }),
+      delete: vi.fn().mockResolvedValue(category),
     };
     controller = new CategoryController(categoryServiceMock as unknown as CategoryService);
   });
@@ -23,24 +26,24 @@ describe('CategoryController', () => {
   it('delegates getAll to CategoryService and returns its result', async () => {
     const result = await controller.getAll(user);
     expect(categoryServiceMock.getAll).toHaveBeenCalledWith(user.id);
-    expect(result).toEqual({ access_token: 'getAll-token' });
+    expect(result).toEqual(categories);
   });
 
   it('delegates create to CategoryService and returns its result', async () => {
     const result = await controller.create(user, dto);
     expect(categoryServiceMock.create).toHaveBeenCalledWith(dto, user.id);
-    expect(result).toEqual({ access_token: 'create-token' });
+    expect(result).toEqual(category);
   });
 
   it('delegates edit to CategoryService and returns its result', async () => {
     const result = await controller.edit(user, dto, 5);
     expect(categoryServiceMock.edit).toHaveBeenCalledWith(dto, 5, user.id);
-    expect(result).toEqual({ access_token: 'edit-token' });
+    expect(result).toEqual({ ...category, name: 'updated category' });
   });
 
   it('delegates delete to CategoryService and returns its result', async () => {
     const result = await controller.delete(user, 5);
     expect(categoryServiceMock.delete).toHaveBeenCalledWith(5, user.id);
-    expect(result).toEqual({ access_token: 'delete-token' });
+    expect(result).toEqual(category);
   });
 });
