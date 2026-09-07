@@ -9,7 +9,7 @@ import { FilmModule } from './film/film.module.js';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 5 }]),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
