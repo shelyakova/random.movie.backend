@@ -27,6 +27,26 @@ export class GetFilmsQueryDto {
     @IsArray()
     @IsInt({ each: true })
     categoryIds?: number[];
+
+    @IsOptional()
+    @Transform(({ value }) => {
+        if (value === undefined) return undefined;
+        if (typeof value === 'number') return value;
+        return Number(value);
+    })
+    @IsInt()
+    @Min(1)
+    page?: number = 1;
+
+    @IsOptional()
+    @Transform(({ value }) => {
+        if (value === undefined) return undefined;
+        if (typeof value === 'number') return value;
+        return Number(value);
+    })
+    @IsInt()
+    @Min(1)
+    limit?: number = 10;
 }
 
 export class CreateFilmDto {

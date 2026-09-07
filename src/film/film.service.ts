@@ -12,7 +12,7 @@ export class FilmService {
     ) { }
 
     async getAll(userId: number, query: GetFilmsQueryDto) {
-        const { search, isWatched, categoryIds } = query;
+        const { search, isWatched, categoryIds, page = 1, limit = 10 } = query;
 
         return this.prisma.film.findMany({
             where: {
@@ -28,6 +28,8 @@ export class FilmService {
                 }),
             },
             include: { categories: true },
+            skip: (page - 1) * limit,
+            take: limit,
         });
     }
 
