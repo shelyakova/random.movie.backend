@@ -10,6 +10,8 @@ describe('FilmService', () => {
 
   const userId = 1;
   const filmId = 5;
+  const page = 1;
+  const limit = 10;
   const emptyQuery: GetFilmsQueryDto = {};
 
   beforeEach(() => {
@@ -35,6 +37,8 @@ describe('FilmService', () => {
       expect(prismaMock.film.findMany).toHaveBeenCalledWith({
         where: { userId },
         include: { categories: true },
+        skip: (page - 1) * limit,
+        take: limit,
       });
       expect(result).toEqual(films);
     });
@@ -48,6 +52,8 @@ describe('FilmService', () => {
       expect(prismaMock.film.findMany).toHaveBeenCalledWith({
         where: { userId, isWatched: true },
         include: { categories: true },
+        skip: (page - 1) * limit,
+        take: limit,
       });
     });
 
@@ -60,6 +66,8 @@ describe('FilmService', () => {
       expect(prismaMock.film.findMany).toHaveBeenCalledWith({
         where: { userId, name: { contains: "gray", mode: "insensitive" } },
         include: { categories: true },
+        skip: (page - 1) * limit,
+        take: limit,
       });
     });
 
@@ -78,7 +86,27 @@ describe('FilmService', () => {
           ],
         },
         include: { categories: true },
+        skip: (page - 1) * limit,
+        take: limit,
       });
+    });
+
+    it('applies the page and the limit', async () => {
+      const paginatedFilms = [{ id: 1, name: 'testname', userId, link: "testlink" }, { id: 2, name: 'testname', userId, link: "testlink" }];
+      const currentPage = 2;
+      const currentLimit = 1;
+      const paginationQuery: GetFilmsQueryDto = { page: currentPage, limit: currentLimit };
+      prismaMock.film.findMany.mockResolvedValue(paginatedFilms);
+
+      const result = await filmService.getAll(userId, paginationQuery);
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: { userId },
+        include: { categories: true },
+        skip: (currentPage - 1) * currentLimit,
+        take: currentLimit,
+      });
+      expect(result).toEqual(paginatedFilms);
     });
 
     it('returns an empty array when the user has no films', async () => {
@@ -114,7 +142,7 @@ describe('FilmService', () => {
   });
 
   describe('create', () => {
-    it('creates a film scoped to the user without categoriesccccccccc', async () => {
+    it('creates a film scoped to the user without categories', async () => {
       const createDto: CreateFilmDto = { name: "testname", link: "testlink" };
       const created = { id: filmId, ...createDto, userId };
       prismaMock.film.create.mockResolvedValue(created);
