@@ -135,13 +135,16 @@ describe('CategoryService', () => {
         id: categoryId,
         name: 'action',
         userId,
-        films: [{ id: 1 }],
+        films: [{ id: 1, name: 'film name' }],
       };
       prismaMock.category.findFirst.mockResolvedValue(existing);
 
-      await expect(
-        categoryService.delete(categoryId, userId),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(categoryService.delete(categoryId, userId)).rejects.toMatchObject({
+        response: {
+          message: 'Category has films attached, remove them first',
+          films: ['film name'],
+        },
+      });
       expect(prismaMock.category.delete).not.toHaveBeenCalled();
     });
   });
