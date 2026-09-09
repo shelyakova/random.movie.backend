@@ -66,7 +66,10 @@ export class CategoryService {
         }
 
         if (category.films.length > 0) {
-            throw new ForbiddenException('Category has films attached, remove them first');
+            throw new ForbiddenException({
+                message: 'Category has films attached, remove them first',
+                films: category.films.map((film) => film.name),
+            });
         }
 
         return this.prisma.category.delete({ where: { id: categoryId } });
