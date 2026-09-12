@@ -118,6 +118,90 @@ describe('FilmService', () => {
     });
   });
 
+  describe('getRandom', () => {
+    it('returns one of the matching films when no filters are applied', async () => {
+      const films = [{ id: 1 }, { id: 2 }, { id: 3 }];
+      prismaMock.film.findMany.mockResolvedValue(films);
+
+      const result = await filmService.getRandom(userId);
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: { userId, isWatched: false },
+        select: { id: true },
+      });
+      expect(films.map((f) => f.id)).toContain(result.id);
+    });
+
+    it('applies the search filter to the where clause', async () => {
+      const films = [{ id: 1 }];
+      prismaMock.film.findMany.mockResolvedValue(films);
+
+      const result = await filmService.getRandom(userId, 'gray');
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          isWatched: false,
+          name: { contains: 'gray', mode: 'insensitive' },
+        },
+        select: { id: true },
+      });
+      expect(result).toEqual(films[0]);
+    });
+
+    it('applies the categoryIds filter as an AND of some-matches', async () => {
+      const films = [{ id: 2 }];
+      prismaMock.film.findMany.mockResolvedValue(films);
+
+      const result = await filmService.getRandom(userId, undefined, [1, 3]);
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          isWatched: false,
+          AND: [
+            { categories: { some: { id: 1 } } },
+            { categories: { some: { id: 3 } } },
+          ],
+        },
+        select: { id: true },
+      });
+      expect(result).toEqual(films[0]);
+    });
+
+    it('combines search and categoryIds filters together', async () => {
+      const films = [{ id: 5 }];
+      prismaMock.film.findMany.mockResolvedValue(films);
+
+      await filmService.getRandom(userId, 'star', [2]);
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          isWatched: false,
+          name: { contains: 'star', mode: 'insensitive' },
+          AND: [{ categories: { some: { id: 2 } } }],
+        },
+        select: { id: true },
+      });
+    });
+
+    it('throws NotFoundException when no unwatched films match the filters', async () => {
+      prismaMock.film.findMany.mockResolvedValue([]);
+
+      await expect(filmService.getRandom(userId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('always filters by isWatched: false regardless of other filters', async () => {
+      prismaMock.film.findMany.mockResolvedValue([{ id: 1 }]);
+
+      await filmService.getRandom(userId, 'anything', [7]);
+
+      const callArgs = prismaMock.film.findMany.mock.calls[0][0];
+      expect(callArgs.where.isWatched).toBe(false);
+    });
+  });
+
   describe('getById', () => {
     it('returns the film by id belonging to the user', async () => {
       const film = { id: filmId, name: 'testname', userId, link: "testlink" };

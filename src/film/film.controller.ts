@@ -26,6 +26,18 @@ export class FilmController {
     return this.filmService.getAll(user.id, query);
   }
 
+  @Get('random')
+  getRandom(
+    @GetUser() user: User,
+    @Query('search') search?: string,
+    @Query('categoryIds') categoryIds?: string[],
+  ) {
+    const ids = categoryIds
+      ? (Array.isArray(categoryIds) ? categoryIds : [categoryIds]).map(Number)
+      : undefined;
+    return this.filmService.getRandom(user.id, search, ids);
+  }
+
   @Get(':id')
   getById(@GetUser() user: User, @Param('id', ParseIntPipe) filmId: number) {
     return this.filmService.getById(filmId, user.id);
