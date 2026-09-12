@@ -33,6 +33,27 @@ export class FilmService {
         });
     }
 
+    async getRandom(userId: number, search?: string, categoryIds?: number[]) {
+        const films = await this.prisma.film.findMany({
+            where: {
+                userId,
+                isWatched: false,
+                ...(search && { name: { contains: search, mode: 'insensitive' } }),
+                ...(categoryIds && categoryIds.length > 0 && {
+                    AND: categoryIds.map((id) => ({ categories: { some: { id } } })),
+                }),
+            },
+            select: { id: true },
+        });
+
+        if (films.length === 0) {
+            throw new NotFoundException('No unwatched films found matching the current filters');
+        }
+
+        const randomIndex = Math.floor(Math.random() * films.length);
+        return films[randomIndex];
+    }
+
     async getById(filmId: number, userId: number) {
         const film = await this.prisma.film.findFirst({
             where: { id: filmId, userId },

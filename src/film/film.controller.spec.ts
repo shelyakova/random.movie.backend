@@ -8,6 +8,7 @@ describe('FilmController', () => {
   let controller: FilmController;
   let filmServiceMock: {
     getAll: ReturnType<typeof vi.fn>;
+    getRandom: ReturnType<typeof vi.fn>;
     getById: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     edit: ReturnType<typeof vi.fn>;
@@ -21,6 +22,7 @@ describe('FilmController', () => {
   beforeEach(() => {
     filmServiceMock = {
       getAll: vi.fn().mockResolvedValue(films),
+      getRandom: vi.fn().mockResolvedValue({ id: 1 }),
       getById: vi.fn().mockResolvedValue(film),
       create: vi.fn().mockResolvedValue(film),
       edit: vi.fn().mockResolvedValue({ ...film, isWatched: true }),
@@ -34,6 +36,12 @@ describe('FilmController', () => {
     const result = await controller.getAll(user, query);
     expect(filmServiceMock.getAll).toHaveBeenCalledWith(user.id, query);
     expect(result).toEqual(films);
+  });
+
+  it('delegates getRandom to FilmService and returns its result', async () => {
+    const result = await controller.getRandom(user, '', []);
+    expect(filmServiceMock.getRandom).toHaveBeenCalledWith(user.id, '', []);
+    expect(result).toEqual({ id: 1 });
   });
 
   it('delegates getById to FilmService and returns its result', async () => {
