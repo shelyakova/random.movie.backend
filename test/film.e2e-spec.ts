@@ -4,12 +4,16 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '../src/auth/auth.module.js';
 import { CategoryModule } from '../src/category/category.module.js';
 import { FilmModule } from '../src/film/film.module.js';
+import { CloudinaryModule } from '../src/cloudinary/cloudinary.module.js';
 import { PrismaModule } from '../src/prisma/prisma.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { AuthDto } from '../src/auth/dto/auth.dto.js';
 import { CategoryDto } from '../src/category/dto/category.dto.js';
 import { CreateFilmDto, EditFilmDto } from '../src/film/dto/film.dto.js';
 import * as pactum from 'pactum';
+import * as path from 'path';
+
+const posterFixturePath = path.join(process.cwd(), 'test', 'fixtures', 'test-poster.png');
 
 describe('FilmController (e2e)', () => {
     let app: INestApplication;
@@ -38,6 +42,7 @@ describe('FilmController (e2e)', () => {
             imports: [
                 ConfigModule.forRoot({ isGlobal: true }),
                 PrismaModule,
+                CloudinaryModule,
                 AuthModule,
                 CategoryModule,
                 FilmModule,
@@ -541,6 +546,199 @@ describe('FilmController (e2e)', () => {
                     Authorization: 'Bearer $S{userToken}',
                 })
                 .expectStatus(403);
+        });
+    });
+
+    describe('Upload poster', () => {
+        it('should upload a poster image and return a Cloudinary posterUrl', async () => {
+            const created = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({ name: 'Poster Film', link: 'https://example.com/poster-film' })
+                .expectStatus(201)
+                .returns('id');
+
+            return pactum
+                .spec()
+                .post(`/film/${created}/poster`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withFile('poster', posterFixturePath)
+                .expectStatus(201)
+                .expectJsonLike({
+                    id: created,
+                    posterUrl: /^https:\/\/res\.cloudinary\.com\//,
+                });
+        });
+
+        it('should throw 404 when uploading a poster to another user\'s film', async () => {
+            const otherLogin = await pactum
+                .spec()
+                .post('/auth/login')
+                .withBody(otherUser)
+                .expectStatus(201)
+                .returns('access_token');
+
+            const otherFilmId = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: `Bearer ${otherLogin}`,
+                })
+                .withBody({ name: 'Intruder Poster Film', link: 'https://example.com/intruder-poster' })
+                .expectStatus(201)
+                .returns('id');
+
+            return pactum
+                .spec()
+                .post(`/film/${otherFilmId}/poster`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withFile('poster', posterFixturePath)
+                .expectStatus(404);
+        });
+    });
+
+    describe('Get random film', () => {
+        it('should return one of the unwatched films matching the filter', async () => {
+            const categoryId = await pactum
+                .spec()
+                .post('/category/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({ name: 'Random Pick Category' })
+                .expectStatus(201)
+                .returns('id');
+
+            const firstId = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({
+                    name: 'Random Pick Film One',
+                    link: 'https://example.com/random-pick-one',
+                    categoryIds: [categoryId],
+                })
+                .expectStatus(201)
+                .returns('id');
+
+            const secondId = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({
+                    name: 'Random Pick Film Two',
+                    link: 'https://example.com/random-pick-two',
+                    categoryIds: [categoryId],
+                })
+                .expectStatus(201)
+                .returns('id');
+
+            const response = await pactum
+                .spec()
+                .get('/film/random')
+                .withQueryParams('categoryIds', categoryId)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .returns('.');
+
+            const result = response as { id: number };
+            expect([firstId, secondId]).toContain(result.id);
+        });
+
+        it('should throw 404 when all matching films are watched', async () => {
+            const categoryId = await pactum
+                .spec()
+                .post('/category/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({ name: 'Random Watched Category' })
+                .expectStatus(201)
+                .returns('id');
+
+            await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({
+                    name: 'Random Watched Film',
+                    link: 'https://example.com/random-watched',
+                    isWatched: true,
+                    categoryIds: [categoryId],
+                })
+                .expectStatus(201);
+
+            return pactum
+                .spec()
+                .get('/film/random')
+                .withQueryParams('categoryIds', categoryId)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(404);
+        });
+    });
+
+    describe('Pagination', () => {
+        it('should return a different film on page 2 than on page 1', async () => {
+            await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({ name: 'Pagination Film Alpha', link: 'https://example.com/pagination-alpha' })
+                .expectStatus(201);
+
+            await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({ name: 'Pagination Film Beta', link: 'https://example.com/pagination-beta' })
+                .expectStatus(201);
+
+            const firstPage = await pactum
+                .spec()
+                .get('/film')
+                .withQueryParams({ search: 'Pagination Film', page: 1, limit: 1 })
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .returns('.');
+
+            const secondPage = await pactum
+                .spec()
+                .get('/film')
+                .withQueryParams({ search: 'Pagination Film', page: 2, limit: 1 })
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .returns('.');
+
+            const firstPageFilms = firstPage as Array<{ id: number }>;
+            const secondPageFilms = secondPage as Array<{ id: number }>;
+            expect(firstPageFilms.length).toBe(1);
+            expect(secondPageFilms.length).toBe(1);
+            expect(firstPageFilms[0].id).not.toBe(secondPageFilms[0].id);
         });
     });
 });

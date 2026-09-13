@@ -7,6 +7,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 describe('FilmService', () => {
   let filmService: FilmService;
   let prismaMock: any;
+  let cloudinaryServiceMock: any;
 
   const userId = 1;
   const filmId = 5;
@@ -24,7 +25,8 @@ describe('FilmService', () => {
         delete: vi.fn(),
       },
     };
-    filmService = new FilmService(prismaMock);
+    cloudinaryServiceMock = { uploadImage: vi.fn() };
+    filmService = new FilmService(prismaMock, cloudinaryServiceMock);
   });
 
   describe('getAll', () => {
@@ -222,6 +224,41 @@ describe('FilmService', () => {
       await expect(
         filmService.getById(filmId, userId),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('uploadPoster', () => {
+    const file = { buffer: Buffer.from('test'), mimetype: 'image/png' } as Express.Multer.File;
+    const posterUrl = 'https://cloudinary.test/poster.png';
+
+    it('uploads and updates posterUrl when the film exists and belongs to the user', async () => {
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink" };
+      const updated = { ...existing, posterUrl };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      cloudinaryServiceMock.uploadImage.mockResolvedValue(posterUrl);
+      prismaMock.film.update.mockResolvedValue(updated);
+
+      const result = await filmService.uploadPoster(filmId, file, userId);
+
+      expect(prismaMock.film.findFirst).toHaveBeenCalledWith({
+        where: { id: filmId, userId },
+      });
+      expect(cloudinaryServiceMock.uploadImage).toHaveBeenCalledWith(file);
+      expect(prismaMock.film.update).toHaveBeenCalledWith({
+        where: { id: filmId },
+        data: { posterUrl },
+      });
+      expect(result).toEqual(updated);
+    });
+
+    it('throws NotFoundException when the film does not exist for the user', async () => {
+      prismaMock.film.findFirst.mockResolvedValue(null);
+
+      await expect(
+        filmService.uploadPoster(filmId, file, userId),
+      ).rejects.toThrow(NotFoundException);
+      expect(cloudinaryServiceMock.uploadImage).not.toHaveBeenCalled();
+      expect(prismaMock.film.update).not.toHaveBeenCalled();
     });
   });
 

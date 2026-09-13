@@ -6,6 +6,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { CategoryModule } from './category/category.module.js';
 import { FilmModule } from './film/film.module.js';
+import { CloudinaryModule } from './cloudinary/cloudinary.module.js';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { FilmModule } from './film/film.module.js';
       isGlobal: true,
     }),
     PrismaModule,
+    CloudinaryModule,
     AuthModule,
     CategoryModule,
     FilmModule
