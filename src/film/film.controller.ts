@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,13 +9,17 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { FilmService } from './film.service.js';
 import { CreateFilmDto, EditFilmDto, GetFilmsQueryDto } from './dto/film.dto.js';
 import { AuthGuard } from '@nestjs/passport';
 import { GetUser } from '../decorator/index.js';
 import type { User } from '../generated/prisma/client.js';
+import { FileInterceptor } from '@nestjs/platform-express';
+import 'multer';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('film')
@@ -41,6 +46,24 @@ export class FilmController {
   @Get(':id')
   getById(@GetUser() user: User, @Param('id', ParseIntPipe) filmId: number) {
     return this.filmService.getById(filmId, user.id);
+  }
+
+  @Post(':id/poster')
+  @UseInterceptors(FileInterceptor('poster', {
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, callback) => {
+      if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
+        return callback(new BadRequestException('Only image files are allowed'), false);
+      }
+      callback(null, true);
+    },
+  }))
+  uploadPoster(
+    @Param('id', ParseIntPipe) filmId: number,
+    @UploadedFile() file: Express.Multer.File,
+    @GetUser() user: User,
+  ) {
+    return this.filmService.uploadPoster(filmId, file, user.id);
   }
 
   @Post('create')

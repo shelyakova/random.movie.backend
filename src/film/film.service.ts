@@ -4,11 +4,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateFilmDto, EditFilmDto, GetFilmsQueryDto } from './dto/film.dto.js';
+import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
 
 @Injectable()
 export class FilmService {
     constructor(
         private prisma: PrismaService,
+        private cloudinaryService: CloudinaryService
     ) { }
 
     async getAll(userId: number, query: GetFilmsQueryDto) {
@@ -66,6 +68,20 @@ export class FilmService {
 
         return film;
     }
+
+    async uploadPoster(filmId: number, file: Express.Multer.File, userId: number) {
+        const film = await this.prisma.film.findFirst({ where: { id: filmId, userId } });
+        if (!film) {
+          throw new NotFoundException('Film not found');
+        }
+      
+        const posterUrl = await this.cloudinaryService.uploadImage(file);
+      
+        return this.prisma.film.update({
+          where: { id: filmId },
+          data: { posterUrl },
+        });
+      }
 
     async create(dto: CreateFilmDto, userId: number) {
         const { categoryIds, ...filmData } = dto;

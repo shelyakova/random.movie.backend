@@ -10,6 +10,7 @@ describe('FilmController', () => {
     getAll: ReturnType<typeof vi.fn>;
     getRandom: ReturnType<typeof vi.fn>;
     getById: ReturnType<typeof vi.fn>;
+    uploadPoster: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     edit: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>
@@ -24,6 +25,7 @@ describe('FilmController', () => {
       getAll: vi.fn().mockResolvedValue(films),
       getRandom: vi.fn().mockResolvedValue({ id: 1 }),
       getById: vi.fn().mockResolvedValue(film),
+      uploadPoster: vi.fn().mockResolvedValue(film),
       create: vi.fn().mockResolvedValue(film),
       edit: vi.fn().mockResolvedValue({ ...film, isWatched: true }),
       delete: vi.fn().mockResolvedValue(film),
@@ -47,6 +49,14 @@ describe('FilmController', () => {
   it('delegates getById to FilmService and returns its result', async () => {
     const result = await controller.getById(user, 1);
     expect(filmServiceMock.getById).toHaveBeenCalledWith(1, user.id);
+    expect(result).toEqual(film);
+  });
+
+  it('delegates uploadPoster to FilmService and returns its result', async () => {
+    const mockFile = { buffer: Buffer.from('test'), mimetype: 'image/png' } as Express.Multer.File;
+    const result = await controller.uploadPoster(5, mockFile, user);
+    
+    expect(filmServiceMock.uploadPoster).toHaveBeenCalledWith(5, mockFile, user.id);
     expect(result).toEqual(film);
   });
 
