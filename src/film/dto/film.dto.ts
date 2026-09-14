@@ -1,6 +1,6 @@
 import { PartialType } from "@nestjs/mapped-types";
 import { Transform } from "class-transformer";
-import { IsArray, IsBoolean, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
 
 export class GetFilmsQueryDto {
     @IsOptional()
@@ -59,6 +59,14 @@ export class CreateFilmDto {
     @IsArray()
     @IsInt({ each: true })
     categoryIds?: number[];
+
+    @IsOptional()
+    @IsDateString()
+    newSeason?: string;
+
+    @IsOptional()
+    @IsDateString()
+    latestEpisode?: string;
 
     @IsOptional()
     @IsInt()

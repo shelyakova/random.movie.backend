@@ -46,6 +46,9 @@ model Film {
   link        String
   posterUrl   String?
 
+  newSeason     DateTime?
+  latestEpisode DateTime?
+
   seasons  Int?
   episodes Int?
   duration Int?
