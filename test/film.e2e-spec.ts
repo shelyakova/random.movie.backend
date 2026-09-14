@@ -129,6 +129,44 @@ describe('FilmController (e2e)', () => {
                 .withBody({ name: 'No Link Film' })
                 .expectStatus(400);
         });
+
+        it('should convert newSeason and latestEpisode to full ISO datetime strings', () => {
+            const dto: CreateFilmDto = {
+                name: 'Dated Show',
+                link: 'https://example.com/dated-show',
+                newSeason: '2027-07-20',
+                latestEpisode: '2027-07-20',
+            };
+
+            return pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody(dto)
+                .expectStatus(201)
+                .expectJsonLike({
+                    name: dto.name,
+                    newSeason: new Date(dto.newSeason as string).toISOString(),
+                    latestEpisode: new Date(dto.latestEpisode as string).toISOString(),
+                });
+        });
+
+        it('should throw 400 when newSeason is not a valid date string', () => {
+            return pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({
+                    name: 'Invalid Date Show',
+                    link: 'https://example.com/invalid-date-show',
+                    newSeason: 'not-a-date',
+                })
+                .expectStatus(400);
+        });
     });
 
     describe('Get films', () => {
@@ -393,6 +431,36 @@ describe('FilmController (e2e)', () => {
                     id: created,
                     name: editDto.name,
                     link: 'https://example.com/editable',
+                });
+        });
+
+        it('should update only newSeason when editing just that field', async () => {
+            const created = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({ name: 'Season Editable Show', link: 'https://example.com/season-editable' })
+                .expectStatus(201)
+                .returns('id');
+
+            const editDto: EditFilmDto = { newSeason: '2027-07-20' };
+
+            return pactum
+                .spec()
+                .patch(`/film/${created}`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody(editDto)
+                .expectStatus(200)
+                .expectJsonLike({
+                    id: created,
+                    name: 'Season Editable Show',
+                    link: 'https://example.com/season-editable',
+                    newSeason: new Date(editDto.newSeason as string).toISOString(),
+                    latestEpisode: null,
                 });
         });
 

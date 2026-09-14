@@ -84,18 +84,18 @@ export class FilmService {
       }
 
     async create(dto: CreateFilmDto, userId: number) {
-        const { categoryIds, ...filmData } = dto;
+        const { categoryIds, newSeason, latestEpisode, ...filmData } = dto;
 
         return this.prisma.film.create({
             data: {
-                ...filmData,
-                userId,
-                categories: categoryIds
-                    ? { connect: categoryIds.map((id) => ({ id })) }
-                    : undefined,
+              ...filmData,
+              userId,
+              newSeason: newSeason ? new Date(newSeason).toISOString() : undefined,
+              latestEpisode: latestEpisode ? new Date(latestEpisode).toISOString() : undefined,
+              categories: categoryIds ? { connect: categoryIds.map((id) => ({ id })) } : undefined,
             },
             include: { categories: true },
-        });
+          });
     }
 
     async edit(dto: EditFilmDto, filmId: number, userId: number) {
@@ -107,15 +107,15 @@ export class FilmService {
             throw new NotFoundException('Film not found');
         }
 
-        const { categoryIds, ...filmData } = dto;
+        const { categoryIds, newSeason, latestEpisode, ...filmData } = dto;
 
         return this.prisma.film.update({
             where: { id: filmId },
             data: {
-                ...filmData,
-                categories: categoryIds
-                    ? { set: categoryIds.map((catId) => ({ id: catId })) }
-                    : undefined,
+            ...filmData,
+            newSeason: newSeason ? new Date(newSeason).toISOString() : undefined,
+            latestEpisode: latestEpisode ? new Date(latestEpisode).toISOString() : undefined,
+            categories: categoryIds ? { set: categoryIds.map((catId) => ({ id: catId })) } : undefined,
             },
             include: { categories: true },
         });

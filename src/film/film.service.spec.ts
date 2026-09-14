@@ -271,7 +271,14 @@ describe('FilmService', () => {
       const result = await filmService.create(createDto, userId);
 
       expect(prismaMock.film.create).toHaveBeenCalledWith({
-        data: { name: 'testname', link: 'testlink', userId, categories: undefined },
+        data: {
+          name: 'testname',
+          link: 'testlink',
+          userId,
+          newSeason: undefined,
+          latestEpisode: undefined,
+          categories: undefined,
+        },
         include: { categories: true },
       });
       expect(result).toEqual(created);
@@ -288,7 +295,33 @@ describe('FilmService', () => {
           name: 'testname',
           link: 'testlink',
           userId,
+          newSeason: undefined,
+          latestEpisode: undefined,
           categories: { connect: [{ id: 1 }, { id: 2 }] },
+        },
+        include: { categories: true },
+      });
+    });
+
+    it('converts newSeason and latestEpisode to full ISO strings', async () => {
+      const createDto: CreateFilmDto = {
+        name: 'testname',
+        link: 'testlink',
+        newSeason: '2027-07-20',
+        latestEpisode: '2027-07-20',
+      };
+      prismaMock.film.create.mockResolvedValue({ id: filmId, ...createDto, userId });
+
+      await filmService.create(createDto, userId);
+
+      expect(prismaMock.film.create).toHaveBeenCalledWith({
+        data: {
+          name: 'testname',
+          link: 'testlink',
+          userId,
+          newSeason: new Date('2027-07-20').toISOString(),
+          latestEpisode: new Date('2027-07-20').toISOString(),
+          categories: undefined,
         },
         include: { categories: true },
       });
@@ -311,10 +344,30 @@ describe('FilmService', () => {
       });
       expect(prismaMock.film.update).toHaveBeenCalledWith({
         where: { id: filmId },
-        data: { isWatched: true, categories: undefined },
+        data: { isWatched: true, newSeason: undefined, latestEpisode: undefined, categories: undefined },
         include: { categories: true },
       });
       expect(result).toEqual(updated);
+    });
+
+    it('converts newSeason and latestEpisode to full ISO strings', async () => {
+      const dtoWithDates: EditFilmDto = { newSeason: '2027-07-20', latestEpisode: '2027-07-20' };
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink" };
+      const updated = { id: filmId, ...dtoWithDates, userId };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      prismaMock.film.update.mockResolvedValue(updated);
+
+      await filmService.edit(dtoWithDates, filmId, userId);
+
+      expect(prismaMock.film.update).toHaveBeenCalledWith({
+        where: { id: filmId },
+        data: {
+          newSeason: new Date('2027-07-20').toISOString(),
+          latestEpisode: new Date('2027-07-20').toISOString(),
+          categories: undefined,
+        },
+        include: { categories: true },
+      });
     });
 
     it('throws NotFoundException when the film does not exist for the user', async () => {
