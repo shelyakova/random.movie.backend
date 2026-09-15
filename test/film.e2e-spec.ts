@@ -907,6 +907,141 @@ describe('FilmController (e2e)', () => {
                 })
                 .expectStatus(404);
         });
+
+        describe('date filters', () => {
+            const filmAName = 'Random Filter Past Season Film';
+            const filmBName = 'Random Filter Future Season Film';
+            const filmCName = 'Random Filter Latest Episode Film';
+
+            let categoryId: number;
+            let filmAId: number;
+            let filmBId: number;
+            let filmCId: number;
+
+            beforeAll(async () => {
+                categoryId = await pactum
+                    .spec()
+                    .post('/category/create')
+                    .withHeaders({
+                        Authorization: 'Bearer $S{userToken}',
+                    })
+                    .withBody({ name: 'Random Date Filter Category' })
+                    .expectStatus(201)
+                    .returns('id');
+
+                filmAId = await pactum
+                    .spec()
+                    .post('/film/create')
+                    .withHeaders({
+                        Authorization: 'Bearer $S{userToken}',
+                    })
+                    .withBody({
+                        name: filmAName,
+                        link: 'https://example.com/random-filter-past-season',
+                        newSeason: '2024-01-15',
+                        categoryIds: [categoryId],
+                    })
+                    .expectStatus(201)
+                    .returns('id');
+
+                filmBId = await pactum
+                    .spec()
+                    .post('/film/create')
+                    .withHeaders({
+                        Authorization: 'Bearer $S{userToken}',
+                    })
+                    .withBody({
+                        name: filmBName,
+                        link: 'https://example.com/random-filter-future-season',
+                        newSeason: '2030-01-15',
+                        categoryIds: [categoryId],
+                    })
+                    .expectStatus(201)
+                    .returns('id');
+
+                filmCId = await pactum
+                    .spec()
+                    .post('/film/create')
+                    .withHeaders({
+                        Authorization: 'Bearer $S{userToken}',
+                    })
+                    .withBody({
+                        name: filmCName,
+                        link: 'https://example.com/random-filter-latest-episode',
+                        latestEpisode: '2025-06-01',
+                        categoryIds: [categoryId],
+                    })
+                    .expectStatus(201)
+                    .returns('id');
+            });
+
+            afterAll(async () => {
+                await pactum
+                    .spec()
+                    .delete(`/film/${filmAId}`)
+                    .withHeaders({
+                        Authorization: 'Bearer $S{userToken}',
+                    })
+                    .expectStatus(200);
+
+                await pactum
+                    .spec()
+                    .delete(`/film/${filmBId}`)
+                    .withHeaders({
+                        Authorization: 'Bearer $S{userToken}',
+                    })
+                    .expectStatus(200);
+
+                await pactum
+                    .spec()
+                    .delete(`/film/${filmCId}`)
+                    .withHeaders({
+                        Authorization: 'Bearer $S{userToken}',
+                    })
+                    .expectStatus(200);
+            });
+
+            it('should always return Film A when newSeasonOut=true', async () => {
+                const response = await pactum
+                    .spec()
+                    .get('/film/random')
+                    .withQueryParams({ newSeasonOut: true, categoryIds: categoryId })
+                    .withHeaders({
+                        Authorization: 'Bearer $S{userToken}',
+                    })
+                    .expectStatus(200)
+                    .returns('.');
+
+                const result = response as { id: number };
+                expect(result.id).toBe(filmAId);
+            });
+
+            it('should always return Film C when hasLatestEpisode=true', async () => {
+                const response = await pactum
+                    .spec()
+                    .get('/film/random')
+                    .withQueryParams({ hasLatestEpisode: true, categoryIds: categoryId })
+                    .withHeaders({
+                        Authorization: 'Bearer $S{userToken}',
+                    })
+                    .expectStatus(200)
+                    .returns('.');
+
+                const result = response as { id: number };
+                expect(result.id).toBe(filmCId);
+            });
+
+            it('should throw 404 when no film matches both newSeasonOut and hasLatestEpisode', () => {
+                return pactum
+                    .spec()
+                    .get('/film/random')
+                    .withQueryParams({ newSeasonOut: true, hasLatestEpisode: true, categoryIds: categoryId })
+                    .withHeaders({
+                        Authorization: 'Bearer $S{userToken}',
+                    })
+                    .expectStatus(404);
+            });
+        });
     });
 
     describe('Pagination', () => {

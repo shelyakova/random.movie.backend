@@ -36,11 +36,19 @@ export class FilmController {
     @GetUser() user: User,
     @Query('search') search?: string,
     @Query('categoryIds') categoryIds?: string[],
+    @Query('newSeasonOut') newSeasonOut?: string,
+    @Query('hasLatestEpisode') hasLatestEpisode?: string,
   ) {
     const ids = categoryIds
       ? (Array.isArray(categoryIds) ? categoryIds : [categoryIds]).map(Number)
       : undefined;
-    return this.filmService.getRandom(user.id, search, ids);
+    return this.filmService.getRandom(
+      user.id,
+      search,
+      ids,
+      newSeasonOut === 'true',
+      hasLatestEpisode === 'true',
+    );
   }
 
   @Get(':id')

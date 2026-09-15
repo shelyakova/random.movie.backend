@@ -240,6 +240,57 @@ describe('FilmService', () => {
       });
     });
 
+    it('applies the newSeasonOut filter to the where clause in getRandom', async () => {
+      const films = [{ id: 1 }];
+      prismaMock.film.findMany.mockResolvedValue(films);
+
+      await filmService.getRandom(userId, undefined, undefined, true);
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          isWatched: false,
+          newSeason: { not: null, lte: expect.any(Date) },
+        },
+        select: { id: true },
+      });
+    });
+
+    it('applies the hasLatestEpisode filter to the where clause in getRandom', async () => {
+      const films = [{ id: 1 }];
+      prismaMock.film.findMany.mockResolvedValue(films);
+
+      await filmService.getRandom(userId, undefined, undefined, undefined, true);
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          isWatched: false,
+          latestEpisode: { not: null },
+        },
+        select: { id: true },
+      });
+    });
+
+    it('combines newSeasonOut and hasLatestEpisode with search and categoryIds', async () => {
+      const films = [{ id: 1 }];
+      prismaMock.film.findMany.mockResolvedValue(films);
+
+      await filmService.getRandom(userId, 'star', [2], true, true);
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          isWatched: false,
+          name: { contains: 'star', mode: 'insensitive' },
+          AND: [{ categories: { some: { id: 2 } } }],
+          newSeason: { not: null, lte: expect.any(Date) },
+          latestEpisode: { not: null },
+        },
+        select: { id: true },
+      });
+    });
+
     it('throws NotFoundException when no unwatched films match the filters', async () => {
       prismaMock.film.findMany.mockResolvedValue([]);
 
