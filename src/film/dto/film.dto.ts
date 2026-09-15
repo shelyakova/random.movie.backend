@@ -30,6 +30,24 @@ export class GetFilmsQueryDto {
 
     @IsOptional()
     @Transform(({ value }) => {
+    if (value === undefined) return undefined;
+    if (typeof value === 'boolean') return value;
+    return value === 'true';
+    })
+    @IsBoolean()
+    newSeasonOut?: boolean;
+
+    @IsOptional()
+    @Transform(({ value }) => {
+    if (value === undefined) return undefined;
+    if (typeof value === 'boolean') return value;
+    return value === 'true';
+    })
+    @IsBoolean()
+    hasLatestEpisode?: boolean;
+
+    @IsOptional()
+    @Transform(({ value }) => {
         if (value === undefined) return undefined;
         if (typeof value === 'number') return value;
         return Number(value);

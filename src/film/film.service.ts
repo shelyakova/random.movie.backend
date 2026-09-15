@@ -14,26 +14,28 @@ export class FilmService {
     ) { }
 
     async getAll(userId: number, query: GetFilmsQueryDto) {
-        const { search, isWatched, categoryIds, page = 1, limit = 10 } = query;
-
+        const { search, isWatched, categoryIds, newSeasonOut, page = 1, hasLatestEpisode, limit = 10 } = query;
+      
         return this.prisma.film.findMany({
-            where: {
-                userId,
-                ...(search && {
-                    name: { contains: search, mode: 'insensitive' },
-                }),
-                ...(isWatched !== undefined && { isWatched }),
-                ...(categoryIds && {
-                    AND: categoryIds.map((id) => ({
-                        categories: { some: { id } },
-                    })),
-                }),
-            },
-            include: { categories: true },
-            skip: (page - 1) * limit,
-            take: limit,
+          where: {
+            userId,
+            ...(search && {
+              name: { contains: search, mode: 'insensitive' },
+            }),
+            ...(isWatched !== undefined && { isWatched }),
+            ...(categoryIds && {
+              AND: categoryIds.map((id) => ({
+                categories: { some: { id } },
+              })),
+            }),
+            ...(newSeasonOut && { newSeason: { not: null, lte: new Date() } }),
+            ...(hasLatestEpisode && { latestEpisode: { not: null } }),
+          },
+          include: { categories: true },
+          skip: (page - 1) * limit,
+          take: limit,
         });
-    }
+      }
 
     async getRandom(userId: number, search?: string, categoryIds?: number[]) {
         const films = await this.prisma.film.findMany({
