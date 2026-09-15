@@ -342,6 +342,153 @@ describe('FilmController (e2e)', () => {
         });
     });
 
+    describe('Get films - date filters', () => {
+        const filmAName = 'Date Filter Past Season Film';
+        const filmBName = 'Date Filter Future Season Film';
+        const filmCName = 'Date Filter Latest Episode Film';
+
+        let filmAId: number;
+        let filmBId: number;
+        let filmCId: number;
+
+        beforeAll(async () => {
+            filmAId = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({
+                    name: filmAName,
+                    link: 'https://example.com/date-filter-past-season',
+                    newSeason: '2024-01-15',
+                })
+                .expectStatus(201)
+                .returns('id');
+
+            filmBId = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({
+                    name: filmBName,
+                    link: 'https://example.com/date-filter-future-season',
+                    newSeason: '2030-01-15',
+                })
+                .expectStatus(201)
+                .returns('id');
+
+            filmCId = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({
+                    name: filmCName,
+                    link: 'https://example.com/date-filter-latest-episode',
+                    latestEpisode: '2025-06-01',
+                })
+                .expectStatus(201)
+                .returns('id');
+        });
+
+        afterAll(async () => {
+            await pactum
+                .spec()
+                .delete(`/film/${filmAId}`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200);
+
+            await pactum
+                .spec()
+                .delete(`/film/${filmBId}`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200);
+
+            await pactum
+                .spec()
+                .delete(`/film/${filmCId}`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200);
+        });
+
+        it('should return only films whose newSeason is due when newSeasonOut=true', async () => {
+            const response = await pactum
+                .spec()
+                .get('/film')
+                .withQueryParams('newSeasonOut', true)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .returns('.');
+
+            const films = response as Array<{ name: string }>;
+            expect(films.some((film) => film.name === filmAName)).toBe(true);
+            expect(films.some((film) => film.name === filmBName)).toBe(false);
+            expect(films.some((film) => film.name === filmCName)).toBe(false);
+        });
+
+        it('should return only films with a latestEpisode set when hasLatestEpisode=true', async () => {
+            const response = await pactum
+                .spec()
+                .get('/film')
+                .withQueryParams('hasLatestEpisode', true)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .returns('.');
+
+            const films = response as Array<{ name: string }>;
+            expect(films.some((film) => film.name === filmCName)).toBe(true);
+            expect(films.some((film) => film.name === filmAName)).toBe(false);
+            expect(films.some((film) => film.name === filmBName)).toBe(false);
+        });
+
+        it('should return all three films when no date filters are applied', async () => {
+            const response = await pactum
+                .spec()
+                .get('/film')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .returns('.');
+
+            const films = response as Array<{ name: string }>;
+            expect(films.some((film) => film.name === filmAName)).toBe(true);
+            expect(films.some((film) => film.name === filmBName)).toBe(true);
+            expect(films.some((film) => film.name === filmCName)).toBe(true);
+        });
+
+        it('should combine newSeasonOut with search to return only the matching film', async () => {
+            const response = await pactum
+                .spec()
+                .get('/film')
+                .withQueryParams({ newSeasonOut: true, search: filmAName })
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .returns('.');
+
+            const films = response as Array<{ name: string }>;
+            expect(films.some((film) => film.name === filmAName)).toBe(true);
+            expect(films.some((film) => film.name === filmBName)).toBe(false);
+            expect(films.some((film) => film.name === filmCName)).toBe(false);
+        });
+    });
+
     describe('Get film by id', () => {
         it('should return a film', async () => {
             const created = await pactum

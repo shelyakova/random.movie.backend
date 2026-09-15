@@ -93,6 +93,58 @@ describe('FilmService', () => {
       });
     });
 
+    it('applies the newSeasonOut filter to the where clause', async () => {
+      const filteredQuery: GetFilmsQueryDto = { newSeasonOut: true };
+      prismaMock.film.findMany.mockResolvedValue([]);
+
+      await filmService.getAll(userId, filteredQuery);
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          newSeason: { not: null, lte: expect.any(Date) },
+        },
+        include: { categories: true },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+    });
+
+    it('applies the hasLatestEpisode filter to the where clause', async () => {
+      const filteredQuery: GetFilmsQueryDto = { hasLatestEpisode: true };
+      prismaMock.film.findMany.mockResolvedValue([]);
+
+      await filmService.getAll(userId, filteredQuery);
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          latestEpisode: { not: null },
+        },
+        include: { categories: true },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+    });
+
+    it('combines newSeasonOut with other filters like search', async () => {
+      const filteredQuery: GetFilmsQueryDto = { newSeasonOut: true, search: 'gray' };
+      prismaMock.film.findMany.mockResolvedValue([]);
+
+      await filmService.getAll(userId, filteredQuery);
+
+      expect(prismaMock.film.findMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          name: { contains: 'gray', mode: 'insensitive' },
+          newSeason: { not: null, lte: expect.any(Date) },
+        },
+        include: { categories: true },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+    });
+
     it('applies the page and the limit', async () => {
       const paginatedFilms = [{ id: 1, name: 'testname', userId, link: "testlink" }, { id: 2, name: 'testname', userId, link: "testlink" }];
       const currentPage = 2;
