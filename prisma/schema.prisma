@@ -61,5 +61,8 @@ model Film {
 
   categories Category[]
 
+  tmdbId   Int?
+  tmdbType String?
+
   @@index([userId])
 }

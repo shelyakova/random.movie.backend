@@ -42,7 +42,7 @@ describe('FilmController', () => {
 
   it('delegates getRandom to FilmService and returns its result', async () => {
     const result = await controller.getRandom(user, '', []);
-    expect(filmServiceMock.getRandom).toHaveBeenCalledWith(user.id, '', []);
+    expect(filmServiceMock.getRandom).toHaveBeenCalledWith(user.id, '', [], false, false);
     expect(result).toEqual({ id: 1 });
   });
 

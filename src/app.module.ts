@@ -7,6 +7,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { CategoryModule } from './category/category.module.js';
 import { FilmModule } from './film/film.module.js';
 import { CloudinaryModule } from './cloudinary/cloudinary.module.js';
+import { TmdbModule } from './tmdb/tmdb.module.js';
 
 @Module({
   imports: [
@@ -18,7 +19,8 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module.js';
     CloudinaryModule,
     AuthModule,
     CategoryModule,
-    FilmModule
+    FilmModule,
+    TmdbModule
   ],
   providers: [
     {
