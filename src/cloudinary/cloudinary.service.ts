@@ -24,4 +24,11 @@ export class CloudinaryService {
       uploadStream.end(file.buffer);
     });
   }
+
+  async uploadImageFromUrl(url: string): Promise<string> {
+    const result = await cloudinary.uploader.upload(url, {
+      folder: 'movie-list-posters',
+    });
+    return result.secure_url;
+  }
 }

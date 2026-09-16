@@ -93,6 +93,20 @@ export class FilmService {
         });
       }
 
+      async uploadPosterFromUrl(filmId: number, posterUrl: string, userId: number) {
+        const film = await this.prisma.film.findFirst({ where: { id: filmId, userId } });
+        if (!film) {
+          throw new NotFoundException('Film not found');
+        }
+      
+        const uploadedPosterUrl = await this.cloudinaryService.uploadImageFromUrl(posterUrl);
+      
+        return this.prisma.film.update({
+          where: { id: filmId },
+          data: { posterUrl: uploadedPosterUrl },
+        });
+      }
+
     async create(dto: CreateFilmDto, userId: number) {
         const { categoryIds, newSeason, latestEpisode, ...filmData } = dto;
 

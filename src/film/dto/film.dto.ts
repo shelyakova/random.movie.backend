@@ -1,6 +1,6 @@
 import { PartialType } from "@nestjs/mapped-types";
 import { Transform } from "class-transformer";
-import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUrl, Max, Min } from "class-validator";
 import { TmdbMediaType } from "../../types/enums/tmdb-media-type.js";
 
 export class GetFilmsQueryDto {
@@ -131,3 +131,9 @@ export class CreateFilmDto {
 }
 
 export class EditFilmDto extends PartialType(CreateFilmDto) { }
+
+export class UploadPosterFromUrlDto {
+    @IsString()
+    @IsUrl()
+    posterUrl: string;
+}

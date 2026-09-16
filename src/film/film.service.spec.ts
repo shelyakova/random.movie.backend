@@ -25,7 +25,7 @@ describe('FilmService', () => {
         delete: vi.fn(),
       },
     };
-    cloudinaryServiceMock = { uploadImage: vi.fn() };
+    cloudinaryServiceMock = { uploadImage: vi.fn(), uploadImageFromUrl: vi.fn() };
     filmService = new FilmService(prismaMock, cloudinaryServiceMock);
   });
 
@@ -361,6 +361,41 @@ describe('FilmService', () => {
         filmService.uploadPoster(filmId, file, userId),
       ).rejects.toThrow(NotFoundException);
       expect(cloudinaryServiceMock.uploadImage).not.toHaveBeenCalled();
+      expect(prismaMock.film.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('uploadPosterFromUrl', () => {
+    const sourceUrl = 'https://example.com/source-poster.png';
+    const posterUrl = 'https://cloudinary.test/poster-from-url.png';
+
+    it('uploads and updates posterUrl when the film exists and belongs to the user', async () => {
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink" };
+      const updated = { ...existing, posterUrl };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      cloudinaryServiceMock.uploadImageFromUrl.mockResolvedValue(posterUrl);
+      prismaMock.film.update.mockResolvedValue(updated);
+
+      const result = await filmService.uploadPosterFromUrl(filmId, sourceUrl, userId);
+
+      expect(prismaMock.film.findFirst).toHaveBeenCalledWith({
+        where: { id: filmId, userId },
+      });
+      expect(cloudinaryServiceMock.uploadImageFromUrl).toHaveBeenCalledWith(sourceUrl);
+      expect(prismaMock.film.update).toHaveBeenCalledWith({
+        where: { id: filmId },
+        data: { posterUrl },
+      });
+      expect(result).toEqual(updated);
+    });
+
+    it('throws NotFoundException when the film does not exist for the user', async () => {
+      prismaMock.film.findFirst.mockResolvedValue(null);
+
+      await expect(
+        filmService.uploadPosterFromUrl(filmId, sourceUrl, userId),
+      ).rejects.toThrow(NotFoundException);
+      expect(cloudinaryServiceMock.uploadImageFromUrl).not.toHaveBeenCalled();
       expect(prismaMock.film.update).not.toHaveBeenCalled();
     });
   });

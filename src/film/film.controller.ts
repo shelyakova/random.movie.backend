@@ -14,7 +14,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FilmService } from './film.service.js';
-import { CreateFilmDto, EditFilmDto, GetFilmsQueryDto } from './dto/film.dto.js';
+import { CreateFilmDto, EditFilmDto, GetFilmsQueryDto, UploadPosterFromUrlDto } from './dto/film.dto.js';
 import { AuthGuard } from '@nestjs/passport';
 import { GetUser } from '../decorator/index.js';
 import type { User } from '../generated/prisma/client.js';
@@ -72,6 +72,15 @@ export class FilmController {
     @GetUser() user: User,
   ) {
     return this.filmService.uploadPoster(filmId, file, user.id);
+  }
+
+  @Post(':id/poster-from-url')
+  uploadPosterFromUrl(
+    @Param('id', ParseIntPipe) filmId: number,
+    @Body() dto: UploadPosterFromUrlDto,
+    @GetUser() user: User,
+  ) {
+    return this.filmService.uploadPosterFromUrl(filmId, dto.posterUrl, user.id);
   }
 
   @Post('create')
