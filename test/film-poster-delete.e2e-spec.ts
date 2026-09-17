@@ -11,10 +11,12 @@ import { AuthDto } from '../src/auth/dto/auth.dto.js';
 import * as pactum from 'pactum';
 
 // Never hit the real Cloudinary API from e2e tests - mock the SDK at module
-// level with a fixed secure_url/public_id fixture for every uploadImageFromUrl call.
+// level with a fixed secure_url/public_id fixture for uploadImageFromUrl (used
+// to seed a film with an existing poster) and a spy on destroy so the delete
+// tests can assert whether Cloudinary was actually asked to remove anything.
 const { MOCKED_SECURE_URL, MOCKED_PUBLIC_ID } = vi.hoisted(() => ({
-    MOCKED_SECURE_URL: 'https://res.cloudinary.com/mocked/image/upload/mock-poster-from-url.png',
-    MOCKED_PUBLIC_ID: 'movie-list-posters/mock-poster-from-url',
+    MOCKED_SECURE_URL: 'https://res.cloudinary.com/mocked/image/upload/mock-poster-to-delete.png',
+    MOCKED_PUBLIC_ID: 'movie-list-posters/mock-poster-to-delete',
 }));
 
 vi.mock('cloudinary', () => ({
@@ -28,16 +30,16 @@ vi.mock('cloudinary', () => ({
     },
 }));
 
-describe('FilmController - poster-from-url (e2e)', () => {
+describe('FilmController - poster deletion (e2e)', () => {
     let app: INestApplication;
     let prisma: PrismaService;
 
     const user: AuthDto = {
-        username: 'poster-url-owner',
+        username: 'poster-delete-owner',
         password: '123456',
     };
     const otherUser: AuthDto = {
-        username: 'poster-url-intruder',
+        username: 'poster-delete-intruder',
         password: '123456',
     };
 
@@ -63,13 +65,13 @@ describe('FilmController - poster-from-url (e2e)', () => {
             }),
         );
         await app.init();
-        await app.listen(3337);
+        await app.listen(3338);
 
         prisma = app.get(PrismaService);
         await prisma.cleanDb();
 
         pactum.request.setBaseUrl(
-            'http://localhost:3337',
+            'http://localhost:3338',
         );
 
         await pactum
@@ -94,7 +96,11 @@ describe('FilmController - poster-from-url (e2e)', () => {
         await app.close();
     });
 
-    describe('POST /film/:id/poster-from-url', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    describe('DELETE /film/:id/poster', () => {
         it('should throw 401 without an Authorization header', async () => {
             const created = await pactum
                 .spec()
@@ -102,71 +108,27 @@ describe('FilmController - poster-from-url (e2e)', () => {
                 .withHeaders({
                     Authorization: 'Bearer $S{userToken}',
                 })
-                .withBody({ name: 'Unauth Poster Url Film', link: 'https://example.com/unauth-poster-url' })
+                .withBody({ name: 'Unauth Delete Poster Film', link: 'https://example.com/unauth-delete-poster' })
                 .expectStatus(201)
                 .returns('id');
 
             return pactum
                 .spec()
-                .post(`/film/${created}/poster-from-url`)
-                .withBody({ posterUrl: 'https://example.com/source-poster.png' })
+                .delete(`/film/${created}/poster`)
                 .expectStatus(401);
-        });
-
-        it('should throw 400 when posterUrl is missing', async () => {
-            const created = await pactum
-                .spec()
-                .post('/film/create')
-                .withHeaders({
-                    Authorization: 'Bearer $S{userToken}',
-                })
-                .withBody({ name: 'Missing Poster Url Film', link: 'https://example.com/missing-poster-url' })
-                .expectStatus(201)
-                .returns('id');
-
-            return pactum
-                .spec()
-                .post(`/film/${created}/poster-from-url`)
-                .withHeaders({
-                    Authorization: 'Bearer $S{userToken}',
-                })
-                .withBody({})
-                .expectStatus(400);
-        });
-
-        it('should throw 400 when posterUrl is not a valid URL', async () => {
-            const created = await pactum
-                .spec()
-                .post('/film/create')
-                .withHeaders({
-                    Authorization: 'Bearer $S{userToken}',
-                })
-                .withBody({ name: 'Invalid Poster Url Film', link: 'https://example.com/invalid-poster-url' })
-                .expectStatus(201)
-                .returns('id');
-
-            return pactum
-                .spec()
-                .post(`/film/${created}/poster-from-url`)
-                .withHeaders({
-                    Authorization: 'Bearer $S{userToken}',
-                })
-                .withBody({ posterUrl: 'not-a-valid-url' })
-                .expectStatus(400);
         });
 
         it('should throw 404 when the film does not exist', () => {
             return pactum
                 .spec()
-                .post('/film/999999/poster-from-url')
+                .delete('/film/999999/poster')
                 .withHeaders({
                     Authorization: 'Bearer $S{userToken}',
                 })
-                .withBody({ posterUrl: 'https://example.com/source-poster.png' })
                 .expectStatus(404);
         });
 
-        it('should throw 404 when uploading a poster-from-url to another user\'s film', async () => {
+        it('should throw 404 when removing a poster from another user\'s film', async () => {
             await pactum
                 .spec()
                 .post('/auth/register')
@@ -186,28 +148,27 @@ describe('FilmController - poster-from-url (e2e)', () => {
                 .withHeaders({
                     Authorization: `Bearer ${otherLogin}`,
                 })
-                .withBody({ name: 'Intruder Poster Url Film', link: 'https://example.com/intruder-poster-url' })
+                .withBody({ name: 'Intruder Delete Poster Film', link: 'https://example.com/intruder-delete-poster' })
                 .expectStatus(201)
                 .returns('id');
 
             return pactum
                 .spec()
-                .post(`/film/${otherFilmId}/poster-from-url`)
+                .delete(`/film/${otherFilmId}/poster`)
                 .withHeaders({
                     Authorization: 'Bearer $S{userToken}',
                 })
-                .withBody({ posterUrl: 'https://example.com/source-poster.png' })
                 .expectStatus(404);
         });
 
-        it('should upload a poster from a URL and persist the returned Cloudinary posterUrl', async () => {
+        it('should remove an existing poster, clearing posterUrl and posterPublicId', async () => {
             const created = await pactum
                 .spec()
                 .post('/film/create')
                 .withHeaders({
                     Authorization: 'Bearer $S{userToken}',
                 })
-                .withBody({ name: 'Poster From Url Film', link: 'https://example.com/poster-from-url-film' })
+                .withBody({ name: 'Poster To Delete Film', link: 'https://example.com/poster-to-delete-film' })
                 .expectStatus(201)
                 .returns('id');
 
@@ -225,6 +186,23 @@ describe('FilmController - poster-from-url (e2e)', () => {
                     posterPublicId: MOCKED_PUBLIC_ID,
                 });
 
+            await pactum
+                .spec()
+                .delete(`/film/${created}/poster`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .expectJsonLike({
+                    id: created,
+                    posterUrl: null,
+                    posterPublicId: null,
+                });
+
+            const film = await prisma.film.findUnique({ where: { id: created } });
+            expect(film?.posterUrl).toBeNull();
+            expect(film?.posterPublicId).toBeNull();
+
             return pactum
                 .spec()
                 .get(`/film/${created}`)
@@ -234,9 +212,38 @@ describe('FilmController - poster-from-url (e2e)', () => {
                 .expectStatus(200)
                 .expectJsonLike({
                     id: created,
-                    posterUrl: MOCKED_SECURE_URL,
-                    posterPublicId: MOCKED_PUBLIC_ID,
+                    posterUrl: null,
+                    posterPublicId: null,
                 });
+        });
+
+        it('should succeed with no Cloudinary delete call when the film has no poster set', async () => {
+            const created = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({ name: 'No Poster Film', link: 'https://example.com/no-poster-film' })
+                .expectStatus(201)
+                .returns('id');
+
+            const { v2: cloudinary } = await import('cloudinary');
+
+            await pactum
+                .spec()
+                .delete(`/film/${created}/poster`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .expectJsonLike({
+                    id: created,
+                    posterUrl: null,
+                    posterPublicId: null,
+                });
+
+            expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
         });
     });
 });

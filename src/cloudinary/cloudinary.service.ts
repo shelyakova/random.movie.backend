@@ -12,23 +12,27 @@ export class CloudinaryService {
     });
   }
 
-  async uploadImage(file: Express.Multer.File): Promise<string> {
+  async uploadImage(file: Express.Multer.File): Promise<{ url: string; publicId: string }> {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         { folder: 'movie-list-posters' },
         (error, result) => {
           if (error || !result) return reject(error);
-          resolve(result.secure_url);
+          resolve({ url: result.secure_url, publicId: result.public_id });
         },
       );
       uploadStream.end(file.buffer);
     });
   }
 
-  async uploadImageFromUrl(url: string): Promise<string> {
+  async uploadImageFromUrl(url: string): Promise<{ url: string; publicId: string }> {
     const result = await cloudinary.uploader.upload(url, {
       folder: 'movie-list-posters',
     });
-    return result.secure_url;
+    return { url: result.secure_url, publicId: result.public_id };
+  }
+
+  async deleteImage(publicId: string): Promise<void> {
+    await cloudinary.uploader.destroy(publicId);
   }
 }

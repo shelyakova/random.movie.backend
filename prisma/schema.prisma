@@ -64,5 +64,7 @@ model Film {
   tmdbId   Int?
   tmdbType String?
 
+  posterPublicId String?
+
   @@index([userId])
 }

@@ -83,6 +83,11 @@ export class FilmController {
     return this.filmService.uploadPosterFromUrl(filmId, dto.posterUrl, user.id);
   }
 
+  @Delete(':id/poster')
+  removePoster(@Param('id', ParseIntPipe) filmId: number, @GetUser() user: User) {
+    return this.filmService.removePoster(filmId, user.id);
+  }
+
   @Post('create')
   create(@GetUser() user: User, @Body() dto: CreateFilmDto) {
     return this.filmService.create(dto, user.id);

@@ -80,32 +80,56 @@ export class FilmService {
     }
 
     async uploadPoster(filmId: number, file: Express.Multer.File, userId: number) {
-        const film = await this.prisma.film.findFirst({ where: { id: filmId, userId } });
-        if (!film) {
-          throw new NotFoundException('Film not found');
-        }
-      
-        const posterUrl = await this.cloudinaryService.uploadImage(file);
-      
-        return this.prisma.film.update({
-          where: { id: filmId },
-          data: { posterUrl },
-        });
+      const film = await this.prisma.film.findFirst({ where: { id: filmId, userId } });
+      if (!film) {
+        throw new NotFoundException('Film not found');
       }
-
-      async uploadPosterFromUrl(filmId: number, posterUrl: string, userId: number) {
-        const film = await this.prisma.film.findFirst({ where: { id: filmId, userId } });
-        if (!film) {
-          throw new NotFoundException('Film not found');
-        }
-      
-        const uploadedPosterUrl = await this.cloudinaryService.uploadImageFromUrl(posterUrl);
-      
-        return this.prisma.film.update({
-          where: { id: filmId },
-          data: { posterUrl: uploadedPosterUrl },
-        });
+    
+      if (film.posterPublicId) {
+        await this.cloudinaryService.deleteImage(film.posterPublicId);
       }
+    
+      const { url, publicId } = await this.cloudinaryService.uploadImage(file);
+    
+      return this.prisma.film.update({
+        where: { id: filmId },
+        data: { posterUrl: url, posterPublicId: publicId },
+      });
+    }
+    
+    async uploadPosterFromUrl(filmId: number, posterUrl: string, userId: number) {
+      const film = await this.prisma.film.findFirst({ where: { id: filmId, userId } });
+      if (!film) {
+        throw new NotFoundException('Film not found');
+      }
+    
+      if (film.posterPublicId) {
+        await this.cloudinaryService.deleteImage(film.posterPublicId);
+      }
+    
+      const { url, publicId } = await this.cloudinaryService.uploadImageFromUrl(posterUrl);
+    
+      return this.prisma.film.update({
+        where: { id: filmId },
+        data: { posterUrl: url, posterPublicId: publicId },
+      });
+    }
+    
+    async removePoster(filmId: number, userId: number) {
+      const film = await this.prisma.film.findFirst({ where: { id: filmId, userId } });
+      if (!film) {
+        throw new NotFoundException('Film not found');
+      }
+    
+      if (film.posterPublicId) {
+        await this.cloudinaryService.deleteImage(film.posterPublicId);
+      }
+    
+      return this.prisma.film.update({
+        where: { id: filmId },
+        data: { posterUrl: null, posterPublicId: null },
+      });
+    }
 
     async create(dto: CreateFilmDto, userId: number) {
         const { categoryIds, newSeason, latestEpisode, ...filmData } = dto;

@@ -787,6 +787,7 @@ describe('FilmController (e2e)', () => {
                 .expectJsonLike({
                     id: created,
                     posterUrl: /^https:\/\/res\.cloudinary\.com\//,
+                    posterPublicId: /^movie-list-posters\//,
                 });
         });
 

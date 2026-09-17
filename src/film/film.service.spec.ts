@@ -25,7 +25,7 @@ describe('FilmService', () => {
         delete: vi.fn(),
       },
     };
-    cloudinaryServiceMock = { uploadImage: vi.fn(), uploadImageFromUrl: vi.fn() };
+    cloudinaryServiceMock = { uploadImage: vi.fn(), uploadImageFromUrl: vi.fn(), deleteImage: vi.fn() };
     filmService = new FilmService(prismaMock, cloudinaryServiceMock);
   });
 
@@ -333,12 +333,13 @@ describe('FilmService', () => {
   describe('uploadPoster', () => {
     const file = { buffer: Buffer.from('test'), mimetype: 'image/png' } as Express.Multer.File;
     const posterUrl = 'https://cloudinary.test/poster.png';
+    const posterPublicId = 'movie-list-posters/poster';
 
-    it('uploads and updates posterUrl when the film exists and belongs to the user', async () => {
-      const existing = { id: filmId, name: 'testname', userId, link: "testlink" };
-      const updated = { ...existing, posterUrl };
+    it('uploads and updates posterUrl and posterPublicId when the film exists and belongs to the user', async () => {
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink", posterPublicId: null };
+      const updated = { ...existing, posterUrl, posterPublicId };
       prismaMock.film.findFirst.mockResolvedValue(existing);
-      cloudinaryServiceMock.uploadImage.mockResolvedValue(posterUrl);
+      cloudinaryServiceMock.uploadImage.mockResolvedValue({ url: posterUrl, publicId: posterPublicId });
       prismaMock.film.update.mockResolvedValue(updated);
 
       const result = await filmService.uploadPoster(filmId, file, userId);
@@ -349,7 +350,7 @@ describe('FilmService', () => {
       expect(cloudinaryServiceMock.uploadImage).toHaveBeenCalledWith(file);
       expect(prismaMock.film.update).toHaveBeenCalledWith({
         where: { id: filmId },
-        data: { posterUrl },
+        data: { posterUrl, posterPublicId },
       });
       expect(result).toEqual(updated);
     });
@@ -360,20 +361,58 @@ describe('FilmService', () => {
       await expect(
         filmService.uploadPoster(filmId, file, userId),
       ).rejects.toThrow(NotFoundException);
+      expect(cloudinaryServiceMock.deleteImage).not.toHaveBeenCalled();
       expect(cloudinaryServiceMock.uploadImage).not.toHaveBeenCalled();
       expect(prismaMock.film.update).not.toHaveBeenCalled();
+    });
+
+    it('does not call deleteImage when the film has no existing posterPublicId', async () => {
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink", posterPublicId: null };
+      const updated = { ...existing, posterUrl, posterPublicId };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      cloudinaryServiceMock.uploadImage.mockResolvedValue({ url: posterUrl, publicId: posterPublicId });
+      prismaMock.film.update.mockResolvedValue(updated);
+
+      await filmService.uploadPoster(filmId, file, userId);
+
+      expect(cloudinaryServiceMock.deleteImage).not.toHaveBeenCalled();
+      expect(cloudinaryServiceMock.uploadImage).toHaveBeenCalledWith(file);
+    });
+
+    it('deletes the old poster from Cloudinary before uploading the new one when posterPublicId already exists', async () => {
+      const oldPublicId = 'movie-list-posters/old-poster';
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink", posterPublicId: oldPublicId };
+      const updated = { ...existing, posterUrl, posterPublicId };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      cloudinaryServiceMock.uploadImage.mockResolvedValue({ url: posterUrl, publicId: posterPublicId });
+      prismaMock.film.update.mockResolvedValue(updated);
+
+      const callOrder: string[] = [];
+      cloudinaryServiceMock.deleteImage.mockImplementation(async () => {
+        callOrder.push('deleteImage');
+      });
+      cloudinaryServiceMock.uploadImage.mockImplementation(async () => {
+        callOrder.push('uploadImage');
+        return { url: posterUrl, publicId: posterPublicId };
+      });
+
+      await filmService.uploadPoster(filmId, file, userId);
+
+      expect(cloudinaryServiceMock.deleteImage).toHaveBeenCalledWith(oldPublicId);
+      expect(callOrder).toEqual(['deleteImage', 'uploadImage']);
     });
   });
 
   describe('uploadPosterFromUrl', () => {
     const sourceUrl = 'https://example.com/source-poster.png';
     const posterUrl = 'https://cloudinary.test/poster-from-url.png';
+    const posterPublicId = 'movie-list-posters/poster-from-url';
 
-    it('uploads and updates posterUrl when the film exists and belongs to the user', async () => {
-      const existing = { id: filmId, name: 'testname', userId, link: "testlink" };
-      const updated = { ...existing, posterUrl };
+    it('uploads and updates posterUrl and posterPublicId when the film exists and belongs to the user', async () => {
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink", posterPublicId: null };
+      const updated = { ...existing, posterUrl, posterPublicId };
       prismaMock.film.findFirst.mockResolvedValue(existing);
-      cloudinaryServiceMock.uploadImageFromUrl.mockResolvedValue(posterUrl);
+      cloudinaryServiceMock.uploadImageFromUrl.mockResolvedValue({ url: posterUrl, publicId: posterPublicId });
       prismaMock.film.update.mockResolvedValue(updated);
 
       const result = await filmService.uploadPosterFromUrl(filmId, sourceUrl, userId);
@@ -384,7 +423,7 @@ describe('FilmService', () => {
       expect(cloudinaryServiceMock.uploadImageFromUrl).toHaveBeenCalledWith(sourceUrl);
       expect(prismaMock.film.update).toHaveBeenCalledWith({
         where: { id: filmId },
-        data: { posterUrl },
+        data: { posterUrl, posterPublicId },
       });
       expect(result).toEqual(updated);
     });
@@ -395,8 +434,93 @@ describe('FilmService', () => {
       await expect(
         filmService.uploadPosterFromUrl(filmId, sourceUrl, userId),
       ).rejects.toThrow(NotFoundException);
+      expect(cloudinaryServiceMock.deleteImage).not.toHaveBeenCalled();
       expect(cloudinaryServiceMock.uploadImageFromUrl).not.toHaveBeenCalled();
       expect(prismaMock.film.update).not.toHaveBeenCalled();
+    });
+
+    it('does not call deleteImage when the film has no existing posterPublicId', async () => {
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink", posterPublicId: null };
+      const updated = { ...existing, posterUrl, posterPublicId };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      cloudinaryServiceMock.uploadImageFromUrl.mockResolvedValue({ url: posterUrl, publicId: posterPublicId });
+      prismaMock.film.update.mockResolvedValue(updated);
+
+      await filmService.uploadPosterFromUrl(filmId, sourceUrl, userId);
+
+      expect(cloudinaryServiceMock.deleteImage).not.toHaveBeenCalled();
+      expect(cloudinaryServiceMock.uploadImageFromUrl).toHaveBeenCalledWith(sourceUrl);
+    });
+
+    it('deletes the old poster from Cloudinary before uploading the new one when posterPublicId already exists', async () => {
+      const oldPublicId = 'movie-list-posters/old-poster';
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink", posterPublicId: oldPublicId };
+      const updated = { ...existing, posterUrl, posterPublicId };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      prismaMock.film.update.mockResolvedValue(updated);
+
+      const callOrder: string[] = [];
+      cloudinaryServiceMock.deleteImage.mockImplementation(async () => {
+        callOrder.push('deleteImage');
+      });
+      cloudinaryServiceMock.uploadImageFromUrl.mockImplementation(async () => {
+        callOrder.push('uploadImageFromUrl');
+        return { url: posterUrl, publicId: posterPublicId };
+      });
+
+      await filmService.uploadPosterFromUrl(filmId, sourceUrl, userId);
+
+      expect(cloudinaryServiceMock.deleteImage).toHaveBeenCalledWith(oldPublicId);
+      expect(callOrder).toEqual(['deleteImage', 'uploadImageFromUrl']);
+    });
+  });
+
+  describe('removePoster', () => {
+    it('throws NotFoundException when the film does not exist for the user', async () => {
+      prismaMock.film.findFirst.mockResolvedValue(null);
+
+      await expect(
+        filmService.removePoster(filmId, userId),
+      ).rejects.toThrow(NotFoundException);
+      expect(cloudinaryServiceMock.deleteImage).not.toHaveBeenCalled();
+      expect(prismaMock.film.update).not.toHaveBeenCalled();
+    });
+
+    it('does not call deleteImage and clears posterUrl/posterPublicId when the film has no poster set', async () => {
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink", posterPublicId: null };
+      const updated = { ...existing, posterUrl: null, posterPublicId: null };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      prismaMock.film.update.mockResolvedValue(updated);
+
+      const result = await filmService.removePoster(filmId, userId);
+
+      expect(cloudinaryServiceMock.deleteImage).not.toHaveBeenCalled();
+      expect(prismaMock.film.update).toHaveBeenCalledWith({
+        where: { id: filmId },
+        data: { posterUrl: null, posterPublicId: null },
+      });
+      expect(cloudinaryServiceMock.uploadImage).not.toHaveBeenCalled();
+      expect(cloudinaryServiceMock.uploadImageFromUrl).not.toHaveBeenCalled();
+      expect(result).toEqual(updated);
+    });
+
+    it('deletes the poster from Cloudinary and clears posterUrl/posterPublicId when a poster is set', async () => {
+      const existingPublicId = 'movie-list-posters/existing-poster';
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink", posterUrl: 'https://cloudinary.test/existing.png', posterPublicId: existingPublicId };
+      const updated = { ...existing, posterUrl: null, posterPublicId: null };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      prismaMock.film.update.mockResolvedValue(updated);
+
+      const result = await filmService.removePoster(filmId, userId);
+
+      expect(cloudinaryServiceMock.deleteImage).toHaveBeenCalledWith(existingPublicId);
+      expect(prismaMock.film.update).toHaveBeenCalledWith({
+        where: { id: filmId },
+        data: { posterUrl: null, posterPublicId: null },
+      });
+      expect(cloudinaryServiceMock.uploadImage).not.toHaveBeenCalled();
+      expect(cloudinaryServiceMock.uploadImageFromUrl).not.toHaveBeenCalled();
+      expect(result).toEqual(updated);
     });
   });
 
