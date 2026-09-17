@@ -588,6 +588,41 @@ describe('FilmService', () => {
         include: { categories: true },
       });
     });
+
+    it('leaves newSeason and latestEpisode undefined when omitted from the DTO', async () => {
+      const createDto: CreateFilmDto = { name: 'testname', link: 'testlink' };
+      prismaMock.film.create.mockResolvedValue({ id: filmId, ...createDto, userId });
+
+      await filmService.create(createDto, userId);
+
+      const data = prismaMock.film.create.mock.calls[0][0].data;
+      expect(data.newSeason).toBeUndefined();
+      expect(data.latestEpisode).toBeUndefined();
+    });
+
+    it('sets newSeason and latestEpisode to null when explicitly sent as null', async () => {
+      const createDto: CreateFilmDto = {
+        name: 'testname',
+        link: 'testlink',
+        newSeason: null,
+        latestEpisode: null,
+      };
+      prismaMock.film.create.mockResolvedValue({ id: filmId, ...createDto, userId });
+
+      await filmService.create(createDto, userId);
+
+      expect(prismaMock.film.create).toHaveBeenCalledWith({
+        data: {
+          name: 'testname',
+          link: 'testlink',
+          userId,
+          newSeason: null,
+          latestEpisode: null,
+          categories: undefined,
+        },
+        include: { categories: true },
+      });
+    });
   });
 
   describe('edit', () => {
@@ -612,6 +647,20 @@ describe('FilmService', () => {
       expect(result).toEqual(updated);
     });
 
+    it('leaves newSeason and latestEpisode untouched (undefined) when omitted from the DTO', async () => {
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink" };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      prismaMock.film.update.mockResolvedValue({ ...existing, ...editDto });
+
+      await filmService.edit(editDto, filmId, userId);
+
+      const data = prismaMock.film.update.mock.calls[0][0].data;
+      expect(data.newSeason).toBeUndefined();
+      expect(data.latestEpisode).toBeUndefined();
+      expect('newSeason' in data).toBe(true);
+      expect('latestEpisode' in data).toBe(true);
+    });
+
     it('converts newSeason and latestEpisode to full ISO strings', async () => {
       const dtoWithDates: EditFilmDto = { newSeason: '2027-07-20', latestEpisode: '2027-07-20' };
       const existing = { id: filmId, name: 'testname', userId, link: "testlink" };
@@ -626,6 +675,57 @@ describe('FilmService', () => {
         data: {
           newSeason: new Date('2027-07-20').toISOString(),
           latestEpisode: new Date('2027-07-20').toISOString(),
+          categories: undefined,
+        },
+        include: { categories: true },
+      });
+    });
+
+    it('sets newSeason and latestEpisode to null when explicitly sent as null', async () => {
+      const dtoWithNulls: EditFilmDto = { newSeason: null, latestEpisode: null };
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink", newSeason: '2027-07-20', latestEpisode: '2027-07-20' };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      prismaMock.film.update.mockResolvedValue({ ...existing, newSeason: null, latestEpisode: null });
+
+      await filmService.edit(dtoWithNulls, filmId, userId);
+
+      expect(prismaMock.film.update).toHaveBeenCalledWith({
+        where: { id: filmId },
+        data: {
+          newSeason: null,
+          latestEpisode: null,
+          categories: undefined,
+        },
+        include: { categories: true },
+      });
+    });
+
+    it('passes seasons, episodes, duration, description, year and mark through as null when explicitly nulled', async () => {
+      const dtoWithNulls: EditFilmDto = {
+        seasons: null,
+        episodes: null,
+        duration: null,
+        description: null,
+        year: null,
+        mark: null,
+      };
+      const existing = { id: filmId, name: 'testname', userId, link: "testlink" };
+      prismaMock.film.findFirst.mockResolvedValue(existing);
+      prismaMock.film.update.mockResolvedValue({ ...existing, ...dtoWithNulls });
+
+      await filmService.edit(dtoWithNulls, filmId, userId);
+
+      expect(prismaMock.film.update).toHaveBeenCalledWith({
+        where: { id: filmId },
+        data: {
+          seasons: null,
+          episodes: null,
+          duration: null,
+          description: null,
+          year: null,
+          mark: null,
+          newSeason: undefined,
+          latestEpisode: undefined,
           categories: undefined,
         },
         include: { categories: true },

@@ -167,6 +167,50 @@ describe('FilmController (e2e)', () => {
                 })
                 .expectStatus(400);
         });
+
+        it('should accept explicit null for nullable fields', async () => {
+            const dto: CreateFilmDto = {
+                name: 'Nulled Fields Film',
+                link: 'https://example.com/nulled-fields',
+                newSeason: null,
+                latestEpisode: null,
+                seasons: null,
+                episodes: null,
+                duration: null,
+                description: null,
+                year: null,
+                mark: null,
+            };
+
+            const created = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody(dto)
+                .expectStatus(201)
+                .expectJsonLike({
+                    name: dto.name,
+                    newSeason: null,
+                    latestEpisode: null,
+                    seasons: null,
+                    episodes: null,
+                    duration: null,
+                    description: null,
+                    year: null,
+                    mark: null,
+                })
+                .returns('id');
+
+            return pactum
+                .spec()
+                .delete(`/film/${created}`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200);
+        });
     });
 
     describe('Get films', () => {
@@ -608,6 +652,114 @@ describe('FilmController (e2e)', () => {
                     link: 'https://example.com/season-editable',
                     newSeason: new Date(editDto.newSeason as string).toISOString(),
                     latestEpisode: null,
+                });
+        });
+
+        it('should null out newSeason, latestEpisode, seasons and episodes when explicitly set to null', async () => {
+            const created = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({
+                    name: 'Nullable Fields Show',
+                    link: 'https://example.com/nullable-fields',
+                    newSeason: '2027-07-20',
+                    latestEpisode: '2027-07-20',
+                    seasons: 3,
+                    episodes: 24,
+                })
+                .expectStatus(201)
+                .returns('id');
+
+            const editDto: EditFilmDto = {
+                newSeason: null,
+                latestEpisode: null,
+                seasons: null,
+                episodes: null,
+            };
+
+            await pactum
+                .spec()
+                .patch(`/film/${created}`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody(editDto)
+                .expectStatus(200)
+                .expectJsonLike({
+                    id: created,
+                    newSeason: null,
+                    latestEpisode: null,
+                    seasons: null,
+                    episodes: null,
+                });
+
+            return pactum
+                .spec()
+                .get(`/film/${created}`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .expectJsonLike({
+                    id: created,
+                    newSeason: null,
+                    latestEpisode: null,
+                    seasons: null,
+                    episodes: null,
+                });
+        });
+
+        it('should leave newSeason and latestEpisode unchanged when omitted from the edit body', async () => {
+            const originalNewSeason = '2027-07-20';
+            const originalLatestEpisode = '2027-08-15';
+
+            const created = await pactum
+                .spec()
+                .post('/film/create')
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody({
+                    name: 'Unchanged Fields Show',
+                    link: 'https://example.com/unchanged-fields',
+                    newSeason: originalNewSeason,
+                    latestEpisode: originalLatestEpisode,
+                })
+                .expectStatus(201)
+                .returns('id');
+
+            const editDto: EditFilmDto = { name: 'Unchanged Fields Show Renamed' };
+
+            await pactum
+                .spec()
+                .patch(`/film/${created}`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .withBody(editDto)
+                .expectStatus(200)
+                .expectJsonLike({
+                    id: created,
+                    name: editDto.name,
+                    newSeason: new Date(originalNewSeason).toISOString(),
+                    latestEpisode: new Date(originalLatestEpisode).toISOString(),
+                });
+
+            return pactum
+                .spec()
+                .get(`/film/${created}`)
+                .withHeaders({
+                    Authorization: 'Bearer $S{userToken}',
+                })
+                .expectStatus(200)
+                .expectJsonLike({
+                    id: created,
+                    name: editDto.name,
+                    newSeason: new Date(originalNewSeason).toISOString(),
+                    latestEpisode: new Date(originalLatestEpisode).toISOString(),
                 });
         });
 

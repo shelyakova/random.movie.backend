@@ -138,8 +138,8 @@ export class FilmService {
             data: {
               ...filmData,
               userId,
-              newSeason: newSeason ? new Date(newSeason).toISOString() : undefined,
-              latestEpisode: latestEpisode ? new Date(latestEpisode).toISOString() : undefined,
+              newSeason: newSeason === undefined ? undefined : newSeason ? new Date(newSeason).toISOString() : null,
+              latestEpisode: latestEpisode === undefined ? undefined : latestEpisode ? new Date(latestEpisode).toISOString() : null,
               categories: categoryIds ? { connect: categoryIds.map((id) => ({ id })) } : undefined,
             },
             include: { categories: true },
@@ -161,8 +161,8 @@ export class FilmService {
             where: { id: filmId },
             data: {
             ...filmData,
-            newSeason: newSeason ? new Date(newSeason).toISOString() : undefined,
-            latestEpisode: latestEpisode ? new Date(latestEpisode).toISOString() : undefined,
+            newSeason: newSeason === undefined ? undefined : newSeason ? new Date(newSeason).toISOString() : null,
+            latestEpisode: latestEpisode === undefined ? undefined : latestEpisode ? new Date(latestEpisode).toISOString() : null,
             categories: categoryIds ? { set: categoryIds.map((catId) => ({ id: catId })) } : undefined,
             },
             include: { categories: true },

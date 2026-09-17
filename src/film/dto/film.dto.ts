@@ -77,41 +77,41 @@ export class CreateFilmDto {
     @IsOptional()
     @IsArray()
     @IsInt({ each: true })
-    categoryIds?: number[];
+    categoryIds?: number[] | null;
 
     @IsOptional()
     @IsDateString()
-    newSeason?: string;
+    newSeason?: string | null;
 
     @IsOptional()
     @IsDateString()
-    latestEpisode?: string;
+    latestEpisode?: string | null;
 
     @IsOptional()
     @IsInt()
-    seasons?: number;
+    seasons?: number | null;
 
     @IsOptional()
     @IsInt()
-    episodes?: number;
+    episodes?: number | null;
 
     @IsOptional()
     @IsInt()
-    duration?: number;
+    duration?: number | null;
 
     @IsOptional()
     @IsString()
-    description?: string;
+    description?: string | null;
 
     @IsOptional()
     @IsInt()
-    year?: number;
+    year?: number | null;
 
     @IsOptional()
     @IsNumber({ maxDecimalPlaces: 2 })
     @Min(1)
     @Max(10)
-    mark?: number;
+    mark?: number | null;
 
     @IsOptional()
     @IsBoolean()
